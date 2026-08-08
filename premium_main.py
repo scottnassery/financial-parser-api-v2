@@ -9,7 +9,6 @@ import numpy as np
 import pytesseract
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
-from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from google import genai
@@ -17,16 +16,14 @@ from google import genai
 app = FastAPI(
     title="Premium AI Financial Document & Tax OCR Parser",
     description="Premium high-volume parsing engine with adaptive schema healing layers for W-2, 1099-NEC, and SEC Form 10-K filings.",
-    version="1.0.0",
-    docs_url="/docs",
-    openapi_url="/v1/premium/openapi.json"
+    version="1.0.0"
 )
 
 # Global Client Initialization
 CUSTOM_KEY = os.environ.get("CUSTOM_GEMINI_TOKEN")
 ai_client = genai.Client(api_key=CUSTOM_KEY) if CUSTOM_KEY else None
 
-# Pydantic Schemas - Standard clean data outputs fully trusted by RapidAPI
+# Pydantic Schemas
 class W2TaxData(BaseModel):
     box_a_ssn: Optional[str] = Field(None, description="Employee Social Security Number")
     box_b_ein: Optional[str] = Field(None, description="Employer Identification Number")
@@ -175,25 +172,3 @@ async def parse_1099_nec(request: Request):
         except Exception as e:
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Fallback_Raw", "document_type": "IRS_FORM_1099_NEC", "data": {"nonemployee_compensation": None, "raw_error": str(e)}})
     return JSONResponse(status_code=400, content={"status": "error", "message": "AI Engine offline"})
-
-# 👑 FIXED 2000%: Closed all nested JSON brackets cleanly to completely clear Python SyntaxErrors
-def custom_openapi():
-    if app.openapi_schema:
-        return app.openapi_schema
-    openapi_schema = get_openapi(
-        title=app.title,
-        version=app.version,
-        description=app.description,
-        routes=app.routes,
-    )
-    for path, path_item in openapi_schema.get("paths", {}).items():
-        for method, operation in path_item.items():
-            if method.lower() == "post":
-                operation["requestBody"] = {
-                    "required": True,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "type": "object",
-                                "properties": {
-                                }
