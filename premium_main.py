@@ -196,3 +196,4 @@ def custom_openapi():
                             "schema": {
                                 "type": "object",
                                 "properties": {
+                                }
