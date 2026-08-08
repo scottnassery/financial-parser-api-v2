@@ -82,6 +82,7 @@ async def extract_pdf_bytes_safely(request: Request) -> bytes:
                 if "base64," in form_file:
                     parts = form_file.split("base64,")
                     if len(parts) > 1:
+                        # 👑 FIXED 1: Target list index 1 explicitly before calling text methods
                         return base64.b64decode(parts[1].strip())
                 return form_file.encode('utf-8')
     except Exception:
@@ -93,7 +94,7 @@ async def extract_pdf_bytes_safely(request: Request) -> bytes:
         if "base64," in body_str:
             parts = body_str.split("base64,")
             if len(parts) > 1:
-                # FIXED: Added the correct [1] list slice indexing to extract the clean base64 data fragment string safely
+                # 👑 FIXED 2: Target list index 1 explicitly to strip structural replacement tags safely
                 clean_b64 = parts[1].replace('"', '').replace('}', '').replace(' ', '').strip()
                 return base64.b64decode(clean_b64)
         elif body_str.startswith("{") and '"data"' in body_str:
@@ -195,5 +196,3 @@ def custom_openapi():
                         "multipart/form-data": {
                             "schema": {
                                 "type": "object",
-                                "properties": {
-                                    "file": {
