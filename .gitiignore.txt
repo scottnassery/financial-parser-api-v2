@@ -1,0 +1,24 @@
+# Python environment tracking buffers
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# System and local environment files
+.env
+.env.local
+.env.*
+.DS_Store
+*.pdf
+*.png
+*.jpg
+*.json
+
+# Development IDE tracks
+.idea/
+.vscode/
+.project
+.pydevproject
