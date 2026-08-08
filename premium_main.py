@@ -26,7 +26,7 @@ app = FastAPI(
 CUSTOM_KEY = os.environ.get("CUSTOM_GEMINI_TOKEN")
 ai_client = genai.Client(api_key=CUSTOM_KEY) if CUSTOM_KEY else None
 
-# Pydantic Schemas - Standard clean data outputs fully trusted by RapidAPI
+# Pydantic Schemas
 class W2TaxData(BaseModel):
     box_a_ssn: Optional[str] = Field(None, description="Employee Social Security Number")
     box_b_ein: Optional[str] = Field(None, description="Employer Identification Number")
@@ -69,7 +69,9 @@ def process_scanned_pdf_via_ocr_safe(pdf_bytes: bytes) -> str:
     return fallback_text
 
 async def extract_pdf_bytes_safely(request: Request) -> bytes:
+    """Insulated extractor that intercept raw request streams natively to bypass proxy parameter wrapping."""
     content_type = request.headers.get("content-type", "")
+    
     if "multipart/form-data" in content_type:
         try:
             form = await request.form()
@@ -77,15 +79,29 @@ async def extract_pdf_bytes_safely(request: Request) -> bytes:
             if form_file and not isinstance(form_file, str):
                 return await form_file.read()
             elif isinstance(form_file, str) and "base64," in form_file:
-                return base64.b64decode(form_file.split("base64,").strip())
-        except Exception: pass
+                # FIXED: Error-insulated safe split indexing logic
+                parts = form_file.split("base64,")
+                if len(parts) > 1:
+                    return base64.b64decode(parts[1].strip())
+                return form_file.encode('utf-8')
+        except Exception:
+            pass
+            
     body_bytes = await request.body()
-    body_str = body_bytes.decode("utf-8", errors="ignore").strip()
-    if "base64," in body_str:
-        try:
-            match = re.search(r'base64\s*,\s*([A-Za-z0-9+/=\s\n\r]+)', body_str)
-            if match: return base64.b64decode(re.sub(r'[^A-Za-z0-9+/=]', '', match.group(1)))
-        except Exception: pass
+    try:
+        body_str = body_bytes.decode("utf-8", errors="ignore").strip()
+        if "base64," in body_str:
+            parts = body_str.split("base64,")
+            if len(parts) > 1:
+                clean_b64 = parts[1].replace('"', '').replace('}', '').replace(' ', '').strip()
+                return base64.b64decode(clean_b64)
+        elif body_str.startswith("{") and '"data"' in body_str:
+            match = re.search(r'"data"\s*:\s*"[^,]+,([^"]+)"', body_str)
+            if match: 
+                return base64.b64decode(match.group(1))
+    except Exception:
+        pass
+        
     return body_bytes
 
 @app.get("/")
@@ -95,6 +111,9 @@ async def root():
 @app.post("/v1/parse/w2")
 async def parse_w2(request: Request):
     pdf_content = await extract_pdf_bytes_safely(request)
+    if not pdf_content or len(pdf_content) < 100:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Failed to resolve valid PDF bytes."})
+        
     raw_text_stream = ""
     try:
         with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
@@ -112,6 +131,9 @@ async def parse_w2(request: Request):
 @app.post("/v1/parse/sec-10k")
 async def parse_sec_10k(request: Request):
     pdf_content = await extract_pdf_bytes_safely(request)
+    if not pdf_content or len(pdf_content) < 100:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Failed to resolve valid PDF bytes."})
+        
     full_text_buffer = ""
     try:
         with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
@@ -128,6 +150,9 @@ async def parse_sec_10k(request: Request):
 @app.post("/v1/parse/1099-nec")
 async def parse_1099_nec(request: Request):
     pdf_content = await extract_pdf_bytes_safely(request)
+    if not pdf_content or len(pdf_content) < 100:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Failed to resolve valid PDF bytes."})
+        
     raw_text_stream = ""
     try:
         with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
@@ -142,7 +167,6 @@ async def parse_1099_nec(request: Request):
         return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "document_type": "IRS_FORM_1099_NEC", "data": TaxData1099NEC.model_validate_json(response.text).model_dump()})
     return JSONResponse(status_code=400, content={"status": "error", "message": "AI Engine offline"})
 
-# Custom OpenAPI Schema override sanitizes structural validation formatting errors
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -152,7 +176,6 @@ def custom_openapi():
         description=app.description,
         routes=app.routes,
     )
-    # Sanitize endpoint validation schemas to present ultra-clean standard paths
     for path, path_item in openapi_schema.get("paths", {}).items():
         for method, operation in path_item.items():
             if method.lower() == "post":
@@ -174,8 +197,6 @@ def custom_openapi():
                         }
                     }
                 }
-    # 👑 FIXED: Providing a clean, validated schema placeholder structural container
-    # satisfies RapidAPI's mandatory components block layout rules completely.
     openapi_schema["components"] = {
         "schemas": {},
         "securitySchemes": {
