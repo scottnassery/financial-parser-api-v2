@@ -17,9 +17,7 @@ from google import genai
 app = FastAPI(
     title="Premium AI Financial Document & Tax OCR Parser",
     description="Premium high-volume parsing engine with adaptive schema healing layers for W-2, 1099-NEC, and SEC Form 10-K filings.",
-    version="1.0.0",
-    docs_url="/docs",
-    openapi_url="/v1/premium/openapi.json"
+    version="1.0.0"
 )
 
 # Global Client Initialization
@@ -103,7 +101,6 @@ async def parse_w2(request: Request):
     pdf_content = await extract_pdf_bytes_safely(request)
     if not pdf_content or len(pdf_content) < 100:
         return JSONResponse(status_code=400, content={"status": "error", "message": "Failed to resolve valid PDF bytes."})
-        
     raw_text_stream = ""
     try:
         with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
@@ -115,7 +112,7 @@ async def parse_w2(request: Request):
     if ai_client:
         try:
             prompt = f"Extract W-2 tax variables matching the schema from this raw text: {raw_text_stream[:8000]}"
-            # 👑 FIXED: Standard stable production mapping identifier
+            # FIXED: Targets the production flagship model structure natively
             response = ai_client.models.generate_content(model='gemini-2.5-flash', contents=prompt, config={"response_mime_type": "application/json", "response_schema": W2TaxData, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "document_type": "IRS_FORM_W2", "data": W2TaxData.model_validate_json(response.text).model_dump()})
         except Exception as e:
@@ -127,7 +124,6 @@ async def parse_sec_10k(request: Request):
     pdf_content = await extract_pdf_bytes_safely(request)
     if not pdf_content or len(pdf_content) < 100:
         return JSONResponse(status_code=400, content={"status": "error", "message": "Failed to resolve valid PDF bytes."})
-        
     full_text_buffer = ""
     try:
         with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
@@ -138,7 +134,7 @@ async def parse_sec_10k(request: Request):
         try:
             class SECContainer(BaseModel): rows: List[SECBalanceSheetRow]
             prompt = f"Extract balance sheet items matching the schema from this text: {full_text_buffer[:25000]}"
-            # 👑 FIXED: Standard stable production mapping identifier
+            # FIXED: Targets the production flagship model structure natively
             response = ai_client.models.generate_content(model='gemini-2.5-flash', contents=prompt, config={"response_mime_type": "application/json", "response_schema": SECContainer, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "balance_sheet": SECContainer.model_validate_json(response.text).model_dump()["rows"]})
         except Exception as e:
@@ -150,7 +146,6 @@ async def parse_1099_nec(request: Request):
     pdf_content = await extract_pdf_bytes_safely(request)
     if not pdf_content or len(pdf_content) < 100:
         return JSONResponse(status_code=400, content={"status": "error", "message": "Failed to resolve valid PDF bytes."})
-        
     raw_text_stream = ""
     try:
         with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
@@ -162,7 +157,7 @@ async def parse_1099_nec(request: Request):
     if ai_client:
         try:
             prompt = f"Extract 1099-NEC variables matching the schema from this text: {raw_text_stream[:8000]}"
-            # 👑 FIXED: Standard stable production mapping identifier
+            # FIXED: Targets the production flagship model structure natively
             response = ai_client.models.generate_content(model='gemini-2.5-flash', contents=prompt, config={"response_mime_type": "application/json", "response_schema": TaxData1099NEC, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "document_type": "IRS_FORM_1099_NEC", "data": TaxData1099NEC.model_validate_json(response.text).model_dump()})
         except Exception as e:
