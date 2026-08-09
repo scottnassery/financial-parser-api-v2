@@ -115,8 +115,8 @@ async def parse_w2(request: Request):
     if ai_client:
         try:
             prompt = f"Extract W-2 tax variables matching the schema from this raw text: {raw_text_stream[:8000]}"
-            # 👑 FIXED: Removed the older "models/" namespace prefix completely
-            response = ai_client.models.generate_content(model="gemini-2.5-flash", contents=prompt, config={"response_mime_type": "application/json", "response_schema": W2TaxData, "temperature": 0.0})
+            # 👑 FIXED: Updated to standard active production model (gemini-2.0-flash)
+            response = ai_client.models.generate_content(model="gemini-2.0-flash", contents=prompt, config={"response_mime_type": "application/json", "response_schema": W2TaxData, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "document_type": "IRS_FORM_W2", "data": W2TaxData.model_validate_json(response.text).model_dump()})
         except Exception as e:
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Fallback_Raw", "document_type": "IRS_FORM_W2", "data": {"box_1_wages": None, "raw_error": str(e)}})
@@ -137,8 +137,8 @@ async def parse_sec_10k(request: Request):
         try:
             class SECContainer(BaseModel): rows: List[SECBalanceSheetRow]
             prompt = f"Extract balance sheet items matching the schema from this text: {full_text_buffer[:25000]}"
-            # 👑 FIXED: Removed the older "models/" namespace prefix completely
-            response = ai_client.models.generate_content(model="gemini-2.5-flash", contents=prompt, config={"response_mime_type": "application/json", "response_schema": SECContainer, "temperature": 0.0})
+            # 👑 FIXED: Updated to standard active production model (gemini-2.0-flash)
+            response = ai_client.models.generate_content(model="gemini-2.0-flash", contents=prompt, config={"response_mime_type": "application/json", "response_schema": SECContainer, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "balance_sheet": SECContainer.model_validate_json(response.text).model_dump()["rows"]})
         except Exception as e:
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Fallback_Raw", "balance_sheet": [], "raw_error": str(e)})
@@ -160,8 +160,8 @@ async def parse_1099_nec(request: Request):
     if ai_client:
         try:
             prompt = f"Extract 1099-NEC variables matching the schema from this text: {raw_text_stream[:8000]}"
-            # 👑 FIXED: Removed the older "models/" namespace prefix completely
-            response = ai_client.models.generate_content(model="gemini-2.5-flash", contents=prompt, config={"response_mime_type": "application/json", "response_schema": TaxData1099NEC, "temperature": 0.0})
+            # 👑 FIXED: Updated to standard active production model (gemini-2.0-flash)
+            response = ai_client.models.generate_content(model="gemini-2.0-flash", contents=prompt, config={"response_mime_type": "application/json", "response_schema": TaxData1099NEC, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "document_type": "IRS_FORM_1099_NEC", "data": TaxData1099NEC.model_validate_json(response.text).model_dump()})
         except Exception as e:
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Fallback_Raw", "document_type": "IRS_FORM_1099_NEC", "data": {"nonemployee_compensation": None, "raw_error": str(e)}})
