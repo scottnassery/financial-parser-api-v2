@@ -115,7 +115,7 @@ async def parse_w2(request: Request):
     if ai_client:
         try:
             prompt = f"Extract W-2 tax variables matching the schema from this raw text: {raw_text_stream[:8000]}"
-            # 👑 FIXED: Updated to stable production version string
+            # 👑 FIXED: Standard stable production mapping identifier
             response = ai_client.models.generate_content(model='gemini-2.5-flash', contents=prompt, config={"response_mime_type": "application/json", "response_schema": W2TaxData, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "document_type": "IRS_FORM_W2", "data": W2TaxData.model_validate_json(response.text).model_dump()})
         except Exception as e:
@@ -138,7 +138,7 @@ async def parse_sec_10k(request: Request):
         try:
             class SECContainer(BaseModel): rows: List[SECBalanceSheetRow]
             prompt = f"Extract balance sheet items matching the schema from this text: {full_text_buffer[:25000]}"
-            # 👑 FIXED: Updated to stable production version string
+            # 👑 FIXED: Standard stable production mapping identifier
             response = ai_client.models.generate_content(model='gemini-2.5-flash', contents=prompt, config={"response_mime_type": "application/json", "response_schema": SECContainer, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "balance_sheet": SECContainer.model_validate_json(response.text).model_dump()["rows"]})
         except Exception as e:
@@ -162,7 +162,7 @@ async def parse_1099_nec(request: Request):
     if ai_client:
         try:
             prompt = f"Extract 1099-NEC variables matching the schema from this text: {raw_text_stream[:8000]}"
-            # 👑 FIXED: Updated to stable production version string
+            # 👑 FIXED: Standard stable production mapping identifier
             response = ai_client.models.generate_content(model='gemini-2.5-flash', contents=prompt, config={"response_mime_type": "application/json", "response_schema": TaxData1099NEC, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "document_type": "IRS_FORM_1099_NEC", "data": TaxData1099NEC.model_validate_json(response.text).model_dump()})
         except Exception as e:
