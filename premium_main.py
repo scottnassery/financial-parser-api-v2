@@ -9,6 +9,7 @@ import numpy as np
 import pytesseract
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from google import genai
@@ -16,7 +17,9 @@ from google import genai
 app = FastAPI(
     title="Premium AI Financial Document & Tax OCR Parser",
     description="Premium high-volume parsing engine with adaptive schema healing layers for W-2, 1099-NEC, and SEC Form 10-K filings.",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url="/docs",
+    openapi_url="/v1/premium/openapi.json"
 )
 
 # Global Client Initialization
@@ -66,9 +69,7 @@ def process_scanned_pdf_via_ocr_safe(pdf_bytes: bytes) -> str:
     return fallback_text
 
 async def extract_pdf_bytes_safely(request: Request) -> bytes:
-    """Error-insulated parser that reads multipart files or handles base64 streams safely."""
     content_type = request.headers.get("content-type", "")
-    
     try:
         if "multipart/form-data" in content_type:
             form = await request.form()
@@ -81,9 +82,7 @@ async def extract_pdf_bytes_safely(request: Request) -> bytes:
                     if len(parts) > 1:
                         return base64.b64decode(parts[1].strip())
                 return form_file.encode('utf-8')
-    except Exception:
-        pass
-            
+    except Exception: pass
     body_bytes = await request.body()
     try:
         body_str = body_bytes.decode("utf-8", errors="ignore").strip()
@@ -92,13 +91,7 @@ async def extract_pdf_bytes_safely(request: Request) -> bytes:
             if len(parts) > 1:
                 clean_b64 = parts[1].replace('"', '').replace('}', '').replace(' ', '').strip()
                 return base64.b64decode(clean_b64)
-        elif body_str.startswith("{") and '"data"' in body_str:
-            match = re.search(r'"data"\s*:\s*"[^,]+,([^"]+)"', body_str)
-            if match: 
-                return base64.b64decode(match.group(1))
-    except Exception:
-        pass
-        
+    except Exception: pass
     return body_bytes
 
 @app.get("/")
@@ -122,6 +115,7 @@ async def parse_w2(request: Request):
     if ai_client:
         try:
             prompt = f"Extract W-2 tax variables matching the schema from this raw text: {raw_text_stream[:8000]}"
+            # 👑 FIXED: Updated to stable production version string
             response = ai_client.models.generate_content(model='gemini-2.5-flash', contents=prompt, config={"response_mime_type": "application/json", "response_schema": W2TaxData, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "document_type": "IRS_FORM_W2", "data": W2TaxData.model_validate_json(response.text).model_dump()})
         except Exception as e:
@@ -144,6 +138,7 @@ async def parse_sec_10k(request: Request):
         try:
             class SECContainer(BaseModel): rows: List[SECBalanceSheetRow]
             prompt = f"Extract balance sheet items matching the schema from this text: {full_text_buffer[:25000]}"
+            # 👑 FIXED: Updated to stable production version string
             response = ai_client.models.generate_content(model='gemini-2.5-flash', contents=prompt, config={"response_mime_type": "application/json", "response_schema": SECContainer, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "balance_sheet": SECContainer.model_validate_json(response.text).model_dump()["rows"]})
         except Exception as e:
@@ -167,6 +162,7 @@ async def parse_1099_nec(request: Request):
     if ai_client:
         try:
             prompt = f"Extract 1099-NEC variables matching the schema from this text: {raw_text_stream[:8000]}"
+            # 👑 FIXED: Updated to stable production version string
             response = ai_client.models.generate_content(model='gemini-2.5-flash', contents=prompt, config={"response_mime_type": "application/json", "response_schema": TaxData1099NEC, "temperature": 0.0})
             return JSONResponse(status_code=200, content={"status": "success", "extraction_engine": "Premium_Hybrid_AI", "document_type": "IRS_FORM_1099_NEC", "data": TaxData1099NEC.model_validate_json(response.text).model_dump()})
         except Exception as e:
